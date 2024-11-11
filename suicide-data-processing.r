@@ -4,7 +4,12 @@ library(gganimate)
 library(scales)
 library(viridis)
 library(plotly)
+library(readxl)
+library(dplyr)
+library(ggplot)
+#install.packages("readxl")
 
+setwd("C:/Users/vivek/Downloads/School_Projects/DataVisualization")
 # Read and process the data
 process_suicide_data <- function(file_path) {
   df <- read.csv(file_path) %>%
@@ -118,7 +123,7 @@ create_top_countries <- function(data, n = 10) {
     )
 }
 
-df <- process_suicide_data("data.csv")
+df <- process_suicide_data("suicidedata.csv")
 head(df)
 p1 <- create_time_series(df)
 print(p1)
@@ -130,3 +135,4 @@ p4 <- create_gdp_scatter(df)
 print(p4)
 p5 <- create_top_countries(df)
 print(p5)
+
