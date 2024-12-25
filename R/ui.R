@@ -35,7 +35,7 @@ ui <- dashboardPage(
   dashboardBody(
     tabItems(
       tabItem(tabName = "overview",
-              fluidRow(
+            fluidRow(
                 box(plotlyOutput("timeSeriesPlot"), width = 12,
                     title = "Suicide Rates Over Time")
               ),
@@ -45,6 +45,21 @@ ui <- dashboardPage(
                 box(plotlyOutput("ageDistributionPlot"), width = 6,
                     title = "Distribution by Age Group")
               )
+      ),
+
+    tabItem(tabName = "temporal",
+            fluidRow(
+                    box(plotlyOutput("timeSeriesPlot"), width = 12)
+                ),
+                fluidRow(
+                    box(plotlyOutput("ageEvolutionPlot"), width = 6),
+                    box(plotlyOutput("rateChangePlot"), width = 6)
+                )
+      ),
+        tabItem(tabName = "geographic",
+            fluidRow(
+            box(plotlyOutput("regionHeatmap"), width = 12)
+            )
       ),
       
       tabItem(tabName = "demographics",
@@ -66,6 +81,9 @@ ui <- dashboardPage(
               fluidRow(
                 box(plotOutput("gdpAnimation"), width = 12,
                     title = "Economic Development Over Time")
+              ),
+                fluidRow(
+                box(plotlyOutput("gdpPopulationPlot"), width = 12)
               )
       )
     )

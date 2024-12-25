@@ -146,3 +146,107 @@ create_animated_gdp_plot <- function(data) {
     
   return(anim)
 }
+
+create_region_heatmap <- function(data) {
+  yearly_regional_data <- data %>%
+    group_by(country, year) %>%
+    summarise(
+      avg_rate = mean(suicide_rate),
+      .groups = 'drop'
+    )
+  
+  ggplot(yearly_regional_data, aes(x = year, y = country, fill = avg_rate)) +
+    geom_tile() +
+    scale_fill_viridis_c(option = "magma", name = "Suicide Rate\nper 100k") +
+    labs(
+      title = "Suicide Rates Evolution by Country",
+      subtitle = "Darker colors indicate higher rates",
+      x = "Year",
+      y = "Country"
+    ) +
+    theme_suicide_dashboard() +
+    theme(axis.text.y = element_text(size = 8))
+}
+
+create_age_evolution <- function(data) {
+  age_trends <- data %>%
+    group_by(year, age_group) %>%
+    summarise(
+      avg_rate = mean(suicide_rate),
+      .groups = 'drop'
+    )
+  
+  ggplot(age_trends, aes(x = year, y = avg_rate, color = age_group)) +
+    geom_line() +
+    geom_point(data = age_trends %>% 
+               group_by(age_group) %>% 
+               filter(avg_rate == max(avg_rate)),
+               aes(shape = "Peak"), size = 3) +
+    scale_color_viridis_d() +
+    labs(
+      title = "Age Group Suicide Rates Over Time",
+      subtitle = "Points indicate peak rates for each age group",
+      x = "Year",
+      y = "Suicide Rate per 100k",
+      color = "Age Group",
+      shape = ""
+    ) +
+    theme_suicide_dashboard()
+}
+
+create_gdp_population_analysis <- function(data) {
+  gdp_pop_data <- data %>%
+    group_by(country, year) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate),
+      gdp_per_capita = mean(gdp_per_capita),
+      population = sum(population),
+      .groups = 'drop'
+    ) %>%
+    mutate(
+      gdp_category = cut(gdp_per_capita, 
+                        breaks = quantile(gdp_per_capita, probs = seq(0, 1, 0.25)),
+                        labels = c("Low GDP", "Medium-Low GDP", "Medium-High GDP", "High GDP"),
+                        include.lowest = TRUE),
+      population_category = cut(population, 
+                              breaks = quantile(population, probs = seq(0, 1, 0.25)),
+                              labels = c("Small", "Medium-Small", "Medium-Large", "Large"),
+                              include.lowest = TRUE)
+    )
+  
+  ggplot(gdp_pop_data, aes(x = gdp_category, y = suicide_rate, fill = population_category)) +
+    geom_boxplot() +
+    scale_fill_viridis_d() +
+    labs(
+      title = "Suicide Rates by GDP and Population Size",
+      subtitle = "Showing interaction between economic status and population",
+      x = "GDP Category",
+      y = "Suicide Rate per 100k",
+      fill = "Population Size"
+    ) +
+    theme_suicide_dashboard() +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+}
+
+create_rate_change_analysis <- function(data) {
+  change_data <- data %>%
+    group_by(country) %>%
+    arrange(year) %>%
+    mutate(
+      rate_change = (suicide_rate - lag(suicide_rate))/lag(suicide_rate) * 100
+    ) %>%
+    filter(!is.na(rate_change)) %>%
+    ungroup()
+  
+  ggplot(change_data, aes(x = year, y = rate_change)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    geom_smooth(method = "loess", se = TRUE) +
+    geom_point(alpha = 0.1) +
+    labs(
+      title = "Year-over-Year Change in Suicide Rates",
+      subtitle = "Positive values indicate increase, negative values indicate decrease",
+      x = "Year",
+      y = "Percentage Change in Suicide Rate"
+    ) +
+    theme_suicide_dashboard()
+}

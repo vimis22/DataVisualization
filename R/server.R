@@ -49,6 +49,26 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
   
+  output$ageEvolutionPlot <- renderPlotly({
+    p <- create_age_evolution(filtered_data())
+    ggplotly(p)
+  })
+  
+  output$rateChangePlot <- renderPlotly({
+    p <- create_rate_change_analysis(filtered_data())
+    ggplotly(p)
+  })
+  
+  output$regionHeatmap <- renderPlotly({
+    p <- create_region_heatmap(filtered_data())
+    ggplotly(p)
+  })
+  
+  output$gdpPopulationPlot <- renderPlotly({
+    p <- create_gdp_population_analysis(filtered_data())
+    ggplotly(p)
+  })
+  
   output$gdpAnimation <- renderImage({
 
     anim <- create_animated_gdp_plot(filtered_data())
