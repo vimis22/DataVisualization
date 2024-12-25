@@ -16,7 +16,6 @@ library(readxl)
 library(dplyr)
 library(ggplot2)
 
-setwd("C:/Users/vivek/Downloads/School_Projects/DataVisualization/suicidedata.csv")
 # UI Definition
 ui <- dashboardPage(
   # Dashboard Header
@@ -176,7 +175,7 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   # Load and process data
   data <- reactive({
-    df <- read.csv("suicidedata.csv") %>%
+    df <- read.csv("data.csv") %>%
       # Process the data
       mutate(
         year = as.numeric(year),
@@ -605,4 +604,3 @@ server <- function(input, output, session) {
 
 # Run the app
 shinyApp(ui = ui, server = server)
-
