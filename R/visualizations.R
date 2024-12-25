@@ -54,17 +54,25 @@ create_age_boxplot <- function(data) {
 }
 
 create_gdp_scatter <- function(data) {
-  ggplot(data, aes(x = gdp_per_capita, y = suicide_rate, color = sex)) +
-    geom_point(alpha = 0.4, size = 2) +
-    geom_smooth(method = "loess", se = TRUE, color = "black", size = 0.5) +
+  gdp_suicide_data <- data %>%
+    group_by(country, year) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate),
+      gdp_per_capita = mean(gdp_per_capita),
+      .groups = 'drop'
+    )
+  
+  ggplot(gdp_suicide_data, aes(x = gdp_per_capita, y = suicide_rate)) +
+    geom_point(aes(color = suicide_rate), alpha = 0.6) +
+    geom_smooth(method = "loess", color = "black", se = TRUE) +
     scale_x_log10(labels = scales::dollar_format()) +
-    scale_color_manual(values = c("female" = "#2C7BB6", "male" = "#D7191C")) +
+    scale_color_viridis_c() +
     labs(
-      title = "GDP per Capita vs Suicide Rate",
-      subtitle = "Exploring economic relationships with suicide rates",
+      title = "Relationship between GDP per Capita and Suicide Rate",
+      subtitle = "Each point represents a country-year observation",
       x = "GDP per Capita (log scale)",
-      y = "Suicides per 100,000 population",
-      color = "Gender"
+      y = "Suicide Rate per 100,000 population",
+      color = "Suicide Rate"
     ) +
     theme_minimal()
 }
@@ -148,24 +156,30 @@ create_animated_gdp_plot <- function(data) {
 }
 
 create_region_heatmap <- function(data) {
-  yearly_regional_data <- data %>%
-    group_by(country, year) %>%
-    summarise(
-      avg_rate = mean(suicide_rate),
-      .groups = 'drop'
-    )
+  require(maps)
   
-  ggplot(yearly_regional_data, aes(x = year, y = country, fill = avg_rate)) +
-    geom_tile() +
-    scale_fill_viridis_c(option = "magma", name = "Suicide Rate\nper 100k") +
-    labs(
-      title = "Suicide Rates Evolution by Country",
-      subtitle = "Darker colors indicate higher rates",
-      x = "Year",
-      y = "Country"
+  world <- map_data("world")
+
+  country_rates <- data %>%
+    group_by(country) %>%
+    summarise(avg_suicide_rate = mean(suicide_rate, na.rm = TRUE))
+  
+  world_data <- world %>%
+    left_join(country_rates, by = c("region" = "country"))
+  
+  ggplot(world_data, aes(x = long, y = lat, group = group, fill = avg_suicide_rate)) +
+    geom_polygon(color = "white", size = 0.1) +
+    coord_fixed(1.3) +
+    scale_fill_viridis_c(
+      option = "magma",
+      name = "Suicide Rate\nper 100k",
+      na.value = "grey80"
     ) +
-    theme_suicide_dashboard() +
-    theme(axis.text.y = element_text(size = 8))
+    theme_void() +
+    labs(
+      title = "Global Distribution of Suicide Rates",
+      subtitle = "Average rates per 100,000 population"
+    )
 }
 
 create_age_evolution <- function(data) {
@@ -230,23 +244,31 @@ create_gdp_population_analysis <- function(data) {
 
 create_rate_change_analysis <- function(data) {
   change_data <- data %>%
-    group_by(country) %>%
-    arrange(year) %>%
-    mutate(
-      rate_change = (suicide_rate - lag(suicide_rate))/lag(suicide_rate) * 100
+    group_by(country, year) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate),
+      .groups = 'drop'
     ) %>%
-    filter(!is.na(rate_change)) %>%
-    ungroup()
+    group_by(year) %>%
+    summarise(
+      rate_change = (mean(suicide_rate) - lag(mean(suicide_rate))) / lag(mean(suicide_rate)) * 100,
+      change_type = ifelse(rate_change >= 0, "Increase", "Decrease")
+    ) %>%
+    filter(!is.na(rate_change))
   
-  ggplot(change_data, aes(x = year, y = rate_change)) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-    geom_smooth(method = "loess", se = TRUE) +
-    geom_point(alpha = 0.1) +
+  ggplot(change_data, aes(x = year, y = rate_change, fill = change_type)) +
+    geom_bar(stat = "identity", width = 0.8) +
+    scale_fill_manual(values = c("Decrease" = "#2C7BB6", "Increase" = "#D7191C")) +
     labs(
-      title = "Year-over-Year Change in Suicide Rates",
-      subtitle = "Positive values indicate increase, negative values indicate decrease",
+      title = "Year-over-Year Change in Global Suicide Rates",
+      subtitle = "Percentage change from previous year",
       x = "Year",
-      y = "Percentage Change in Suicide Rate"
+      y = "Percent Change (%)",
+      fill = "Change Type"
     ) +
-    theme_suicide_dashboard()
+    theme_minimal() +
+    theme(
+      legend.position = "top",
+      axis.text.x = element_text(angle = 45, hjust = 1)
+    )
 }

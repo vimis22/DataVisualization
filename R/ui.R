@@ -66,10 +66,6 @@ ui <- dashboardPage(
               fluidRow(
                 box(plotlyOutput("generationTrends"), width = 12,
                     title = "Suicide Rates Across Generations")
-              ),
-              fluidRow(
-                box(plotlyOutput("ageGenderDistribution"), width = 12,
-                    title = "Age and Gender Distribution")
               )
       ),
       
