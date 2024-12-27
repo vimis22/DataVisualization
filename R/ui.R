@@ -224,16 +224,42 @@ ui <- dashboardPage(
       tabPanel(title = "GDP",
             fluidRow(
               box(width = 12,
-                  title = "GDP vs Suicide Rate Relationship",
+                    title = "GDP vs Suicide Rate Relationship",
                   plotlyOutput("gdpScatterPlot")
               )
             ),
       ),
-      tabPanel(title = "GDP animated",
+          tabPanel(
+            title = "GDP animated",
             fluidRow(
-              box(width = 6,
-                  title = "GDP Evolution",
-                  imageOutput("animatedGdpPlot")
+              box(
+                width = 12,
+                title = "GDP vs Suicide Rate Relationship",
+                fluidRow(
+                  column(
+                    width = 12,
+                    sliderInput(
+                      "gdpYearSlider",
+                      "Select Year:",
+                      min = 1985,
+                      max = 2015,
+                      value = 1985,
+                      step = 1,
+                      sep = ""
+                    ),
+                    div(
+                      style = "margin-top: 20px; text-align: center;",
+                      actionButton("playPauseGDP", "Play/Pause", icon = icon("play")),
+                      actionButton("resetGDP", "Reset", icon = icon("sync"))
+                    )
+                  )
+                ),
+                fluidRow(
+                  column(
+                    width = 12,
+                    plotlyOutput("gdpAnimatedPlot", height = "500px")
+                  )
+                )
               )
             )
           )

@@ -47,18 +47,17 @@ create_gender_overview <- function(data, plot_type = "line") {
       ) +
       theme_minimal()
   } else if(plot_type == "pie") {
-    data %>%
+    pie_data <- data %>%
       group_by(sex) %>%
-      summarise(suicide_rate = mean(suicide_rate)) %>%
-      ggplot(aes(x = "", y = suicide_rate, fill = sex)) +
-      geom_bar(stat = "identity", width = 1) +
-      coord_polar("y", start = 0) +
-      scale_fill_manual(values = c("Female" = "#FF9DA6", "Male" = "#4B9CD3")) +
-      labs(
-        title = "Distribution of Suicides by Gender",
-        fill = "Gender"
-      ) +
-      theme_void()
+      summarise(suicide_rate = mean(suicide_rate)) 
+    
+    plot_ly(pie_data, 
+            labels = ~sex, 
+            values = ~suicide_rate,
+            type = 'pie',
+            marker = list(colors = c("#FF9DA6", "#4B9CD3"))) %>%
+      layout(title = "Distribution of Suicides by Gender",
+             showlegend = TRUE)
   } else {
     data %>%
       group_by(sex) %>%
@@ -78,18 +77,17 @@ create_gender_overview <- function(data, plot_type = "line") {
 
 create_age_overview <- function(data, plot_type = "bar") {
   if(plot_type == "pie") {
-    data %>%
+    pie_data <- data %>%
       group_by(age_group) %>%
-      summarise(suicide_rate = mean(suicide_rate)) %>%
-      ggplot(aes(x = "", y = suicide_rate, fill = age_group)) +
-      geom_bar(stat = "identity", width = 1) +
-      coord_polar("y", start = 0) +
-      scale_fill_viridis_d() +
-      labs(
-        title = "Distribution of Suicides by Age Group",
-        fill = "Age Group"
-      ) +
-      theme_void()
+      summarise(suicide_rate = mean(suicide_rate))
+    
+    plot_ly(pie_data, 
+            labels = ~age_group, 
+            values = ~suicide_rate,
+            type = 'pie',
+            marker = list(colors = viridis(n = length(unique(data$age_group))))) %>%
+      layout(title = "Distribution of Suicides by Age Group",
+             showlegend = TRUE)
   } else {
     data %>%
       group_by(age_group) %>%
@@ -654,34 +652,33 @@ create_gdp_suicide_scatter <- function(data) {
     )
 }
 
-create_animated_gdp_plot <- function(data) {
-  p <- data %>%
-    group_by(year, country, continent) %>%
-    summarise(
-      suicide_rate = mean(suicide_rate),
-      gdp_per_capita = mean(gdp_per_capita),
-      population = mean(population),
-      .groups = 'drop'
-    ) %>%
+create_animated_gdp_plot <- function(data, selected_year = NULL) {
+  base_plot <- data %>%
+    mutate(year = as.integer(year)) %>%
+    {if (!is.null(selected_year)) filter(., year == selected_year) else .} %>%
     ggplot(aes(x = gdp_per_capita, 
                y = suicide_rate,
                size = population,
                color = continent)) +
     geom_point(alpha = 0.6) +
     scale_size_continuous(range = c(2, 20)) +
-    scale_x_log10(labels = scales::dollar_format()) +
+    scale_x_continuous(labels = scales::dollar_format()) +
     scale_color_viridis_d() +
     labs(
       title = "GDP per Capita vs Suicide Rate",
-      subtitle = "Year: {frame_time}",
+      subtitle = if(is.null(selected_year)) "Year: {frame_time}" else paste("Year:", selected_year),
       x = "GDP per Capita (log scale)",
       y = "Suicide Rate (per 100k population)",
       color = "Continent",
       size = "Population"
     ) +
-    theme_minimal() +
-    transition_time(year) +
-    ease_aes('linear')
-  
-  return(p)
+    theme_minimal()
+    
+  if (is.null(selected_year)) {
+    base_plot + 
+      transition_time(year) +
+      ease_aes('linear')
+  } else {
+    base_plot
+  }
 }

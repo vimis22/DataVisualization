@@ -75,6 +75,59 @@ server <- function(input, output, session) {
       )
   })
 
+  rvGdp <- reactiveValues(
+    animating = FALSE,
+    timer = NULL,
+    gdpAnimating = FALSE,
+    gdpTimer = NULL
+  )
+
+  observe({
+    if (rvGdp$gdpAnimating) {
+      rvGdp$gdpTimer <- invalidateLater(100)
+      isolate({
+        newYear <- input$gdpYearSlider + 1
+        if (newYear > 2015) {
+          newYear <- 1985
+        }
+        updateSliderInput(session, "gdpYearSlider", value = newYear)
+      })
+    }
+  })
+
+  observeEvent(input$playPauseGDP, {
+    rvGdp$gdpAnimating <- !rvGdp$gdpAnimating
+    if (rvGdp$gdpAnimating) {
+      updateActionButton(session, "playPauseGDP",
+                        icon = icon("pause"))
+    } else {
+      updateActionButton(session, "playPauseGDP",
+                        icon = icon("play"))
+    }
+  })
+
+  observeEvent(input$resetGDP, {
+    rvGdp$gdpAnimating <- FALSE
+    updateActionButton(session, "playPauseGDP",
+                      icon = icon("play"))
+    updateSliderInput(session, "gdpYearSlider",
+                    value = 1985)
+  })
+
+  output$gdpAnimatedPlot <- renderPlotly({
+    year_data <- filtered_data() %>%
+      filter(year == input$gdpYearSlider)
+    
+    p <- create_animated_gdp_plot(year_data, input$gdpYearSlider)
+    
+    ggplotly(p) %>%
+      layout(
+        showlegend = TRUE,
+        legend = list(orientation = "h", y = -0.2),
+        margin = list(l = 50, r = 50, b = 100, t = 50)
+      )
+  })
+
   output$timeSeriesPlot <- renderPlotly({
     p <- create_time_series(filtered_data())
     ggplotly(p) %>% 
