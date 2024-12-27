@@ -10,6 +10,7 @@ library(dplyr)
 library(ggplot2)
 library(gridExtra)
 library(RColorBrewer)
+library(ggalt)
 
 if (interactive()) {
   root_dir <- dirname(rstudioapi::getSourceEditorContext()$path)

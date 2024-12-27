@@ -4,6 +4,7 @@ library(plotly)
 library(viridis)
 library(tidyr)
 library(scales)
+library(ggalt)
 
 create_time_series <- function(data) {
   data %>% 
@@ -261,7 +262,7 @@ create_country_bar <- function(data, top_n = 20) {
 }
 
 create_country_gender_proportion <- function(data) {
-  data %>%
+  p <- data %>%
     group_by(country, sex) %>%
     summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
     group_by(country) %>%
@@ -273,7 +274,7 @@ create_country_gender_proportion <- function(data) {
     coord_flip() +
     labs(
       title = "Gender Distribution of Suicides by Country",
-      x = "Country",
+      x = "Country", 
       y = "Proportion",
       fill = "Gender"
     ) +
@@ -321,47 +322,124 @@ create_country_choropleth <- function(data) {
 create_country_trends <- function(data) {
   country_trends <- data %>%
     group_by(country) %>%
-    summarise(
-      trend = coef(lm(suicide_rate ~ year))[2],
-      p_value = summary(lm(suicide_rate ~ year))$coefficients[2,4],
+    filter(n() >= 5) %>%
+    summarize(
+      n_obs = n(),
+      tryCatch({
+        model <- lm(suicide_rate ~ year)
+        estimate <- coef(model)[2]
+        p_value <- summary(model)$coefficients[2,4]
+        tibble(estimate = estimate, p_value = p_value)
+      }, error = function(e) {
+        tibble(estimate = NA_real_, p_value = NA_real_)
+      }),
       .groups = 'drop'
     ) %>%
-    filter(p_value < 0.05) %>%
-    arrange(trend)
-  
-  ggplot(country_trends, aes(x = reorder(country, trend), y = trend)) +
-    geom_col(aes(fill = trend > 0)) +
-    scale_fill_manual(values = c("TRUE" = "#FF9DA6", "FALSE" = "#4B9CD3")) +
-    coord_flip() +
+    filter(!is.na(estimate) & !is.na(p_value)) %>%
+    mutate(p_adjusted = p.adjust(p_value, method = "holm")) %>%
+    filter(p_adjusted < 0.05) %>%
+    arrange(estimate) %>%
+    mutate(country = factor(country, levels = country))
+
+  ggplot(country_trends, aes(x = country, y = estimate, color = estimate)) +
+    geom_point(stat = 'identity', size = 4) +
+    geom_hline(yintercept = 0, color = "grey", size = 1) +
+    geom_segment(aes(y = 0,
+                     x = country,
+                     yend = estimate,
+                     xend = country),
+                 size = 1) +
+    scale_color_gradient(low = "green", high = "red") +
     labs(
-      title = "Annual Change in Suicide Rate by Country",
-      subtitle = "Only showing statistically significant trends (p < 0.05)",
+      title = "Change per year (Suicides per 100k)",
+      subtitle = "Of countries with significant trends (p < 0.05)",
       x = "Country",
-      y = "Annual Change in Suicide Rate"
+      y = "Change Per Year (Suicides per 100k)"
+    ) +
+    scale_y_continuous(
+      breaks = seq(-2, 2, 0.2),
+      limits = c(-1.5, 1.5)
     ) +
     theme_minimal() +
-    theme(legend.position = "none")
+    theme(
+      legend.position = "none",
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 12)
+    ) +
+    coord_flip()
 }
 
 create_gender_disparity_plot <- function(data) {
-  data %>%
-    group_by(continent, country, sex) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
-    pivot_wider(names_from = sex, values_from = suicide_rate) %>%
-    mutate(disparity = Male - Female) %>%
-    ggplot(aes(x = disparity, y = reorder(country, disparity))) +
-    geom_point(aes(color = continent), size = 3) +
-    geom_segment(aes(x = 0, xend = disparity, yend = country), 
-                 color = "gray50") +
-    scale_color_viridis_d() +
-    labs(
-      title = "Gender Disparity in Suicide Rates by Country",
-      subtitle = "Male rate minus Female rate",
-      x = "Gender Disparity (per 100k population)",
-      y = "Country",
-      color = "Continent"
-    ) +
-    theme_minimal()
+  global_average <- data %>%
+    summarize(
+      suicide_rate = sum(as.numeric(suicides_no)) / sum(as.numeric(population)) * 100000
+    ) %>%
+    pull(suicide_rate)
+  
+  sex_country_data <- data %>%
+    group_by(country, sex) %>%
+    summarize(
+      suicide_per_100k = sum(as.numeric(suicides_no)) / sum(as.numeric(population)) * 100000,
+      .groups = 'drop'
+    )
+  
+  sex_country_wide <- sex_country_data %>%
+    pivot_wider(
+      names_from = sex,
+      values_from = suicide_per_100k
+    ) %>%
+    mutate(diff = Male - Female) %>%
+    arrange(diff)
+  
+  plot_ly() %>%
+    add_segments(
+      data = sex_country_wide,
+      x = ~Female, xend = ~Male,
+      y = ~country, yend = ~country,
+      color = I("grey80"),
+      showlegend = FALSE
+    ) %>%
+    add_markers(
+      data = sex_country_data %>% filter(sex == "Female"),
+      x = ~suicide_per_100k, y = ~country,
+      name = "Female",
+      marker = list(color = "#FF9DA6", size = 8)
+    ) %>%
+    add_markers(
+      data = sex_country_data %>% filter(sex == "Male"),
+      x = ~suicide_per_100k, y = ~country,
+      name = "Male", 
+      marker = list(color = "#4B9CD3", size = 8)
+    ) %>%
+    add_segments(
+      x = global_average, xend = global_average,
+      y = sex_country_wide$country[1], yend = tail(sex_country_wide$country, 1),
+      line = list(color = "grey35", dash = "dash"),
+      showlegend = FALSE,
+      name = "Global Average"
+    ) %>%
+    layout(
+      title = list(
+        text = "Gender Disparity in Suicide Rates by Country",
+        font = list(size = 14)
+      ),
+      xaxis = list(
+        title = "Suicides per 100k",
+        range = c(0, max(sex_country_wide$Male) * 1.1),
+        tickvals = seq(0, 80, 10)
+      ),
+      yaxis = list(
+        title = "Country",
+        categoryorder = "array",
+        categoryarray = sex_country_wide$country
+      ),
+      showlegend = TRUE,
+      legend = list(
+        x = 0.85,
+        y = 0.2
+      ),
+      margin = list(l = 150)
+    )
 }
 
 create_gender_time_series <- function(data) {
@@ -411,6 +489,37 @@ create_gender_disparity_evolution <- function(data) {
       plot.title = element_text(size = 14, face = "bold"),
       plot.subtitle = element_text(size = 12)
     )
+}
+
+create_animated_violin_plot <- function(data, selected_year = NULL) {
+  base_plot <- data %>%
+    mutate(year = as.integer(year)) %>%
+    {if (!is.null(selected_year)) filter(., year == selected_year) else .} %>%
+    ggplot(aes(x = age_group, y = suicide_rate, fill = age_group)) +
+    geom_violin(trim = FALSE, alpha = 0.8) +
+    geom_boxplot(width = 0.2, fill = "white", alpha = 0.5, outlier.shape = NA) +
+    scale_fill_viridis_d() +
+    labs(
+      title = "Distribution of Suicide Rates by Age Group",
+      subtitle = "Year: {closest_state}",
+      x = "Age Group",
+      y = "Suicide Rate (per 100k population)"
+    ) +
+    theme_minimal() +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      legend.position = "none",
+      plot.title = element_text(size = 14, face = "bold"),
+      plot.subtitle = element_text(size = 12)
+    )
+    
+  if (is.null(selected_year)) {
+    base_plot + 
+      transition_states(year, transition_length = 2, state_length = 1) +
+      ease_aes('linear')
+  } else {
+    base_plot
+  }
 }
 
 create_age_violin_plot <- function(data) {
@@ -523,7 +632,7 @@ create_gdp_suicide_scatter <- function(data) {
       labels = scales::comma,
       guide = guide_legend(title = "Population")
     ) +
-    scale_x_log10(labels = scales::dollar_format()) +
+    scale_x_continuous(labels = scales::dollar_format()) +
     scale_color_viridis_d() +
     geom_smooth(aes(group = 1), 
                 method = "lm", 
@@ -575,84 +684,4 @@ create_animated_gdp_plot <- function(data) {
     ease_aes('linear')
   
   return(p)
-}
-
-create_gdp_correlation_analysis <- function(data) {
-  correlations <- data %>%
-    group_by(continent) %>%
-    summarise(
-      correlation = cor(gdp_per_capita, suicide_rate),
-      .groups = 'drop'
-    )
-  
-  ggplot(data, aes(x = gdp_per_capita, y = suicide_rate)) +
-    geom_point(aes(color = continent), alpha = 0.6) +
-    geom_smooth(aes(color = continent), method = "lm", se = TRUE) +
-    scale_x_log10(labels = scales::dollar_format()) +
-    scale_color_viridis_d() +
-    facet_wrap(~continent) +
-    labs(
-      title = "GDP-Suicide Rate Correlation by Continent",
-      subtitle = "Separate trend lines showing regional patterns",
-      x = "GDP per Capita (log scale)",
-      y = "Suicide Rate (per 100k population)",
-      color = "Continent"
-    ) +
-    theme_minimal() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 12)
-    )
-}
-
-create_gdp_quantile_analysis <- function(data) {
-  data %>%
-    mutate(gdp_quantile = cut(gdp_per_capita, 
-                             breaks = quantile(gdp_per_capita, probs = seq(0, 1, 0.2)),
-                             labels = c("Lowest 20%", "20-40%", "40-60%", "60-80%", "Top 20%"),
-                             include.lowest = TRUE)) %>%
-    ggplot(aes(x = gdp_quantile, y = suicide_rate, fill = gdp_quantile)) +
-    geom_violin(trim = FALSE) +
-    geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
-    scale_fill_viridis_d() +
-    labs(
-      title = "Distribution of Suicide Rates by GDP Quantile",
-      subtitle = "Showing relationship between economic development and suicide rates",
-      x = "GDP per Capita Quantile",
-      y = "Suicide Rate (per 100k population)"
-    ) +
-    theme_minimal() +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "none",
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 12)
-    )
-}
-
-create_economic_trajectory_plot <- function(data) {
-  data %>%
-    group_by(country, year) %>%
-    summarise(
-      gdp_per_capita = mean(gdp_per_capita),
-      suicide_rate = mean(suicide_rate),
-      .groups = 'drop'
-    ) %>%
-    ggplot(aes(x = gdp_per_capita, y = suicide_rate, group = country)) +
-    geom_path(aes(color = country), alpha = 0.3) +
-    geom_point(aes(color = country), size = 1) +
-    scale_x_log10(labels = scales::dollar_format()) +
-    labs(
-      title = "Economic Development Trajectories and Suicide Rates",
-      subtitle = "Path of each country's development and corresponding suicide rates",
-      x = "GDP per Capita (log scale)",
-      y = "Suicide Rate (per 100k population)"
-    ) +
-    theme_minimal() +
-    theme(
-      legend.position = "none",
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 12)
-    )
 }

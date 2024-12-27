@@ -25,6 +25,56 @@ server <- function(input, output, session) {
         else .}
   })
 
+  rv <- reactiveValues(
+    animating = FALSE,
+    timer = NULL
+  )
+  
+  observe({
+    if (rv$animating) {
+      rv$timer <- invalidateLater(100)
+      isolate({
+        newYear <- input$violinYearSlider + 1
+        if (newYear > 2015) {
+          newYear <- 1985
+        }
+        updateSliderInput(session, "violinYearSlider", value = newYear)
+      })
+    }
+  })
+  
+  observeEvent(input$playPauseViolin, {
+    rv$animating <- !rv$animating
+    if (rv$animating) {
+      updateActionButton(session, "playPauseViolin",
+                        icon = icon("pause"))
+    } else {
+      updateActionButton(session, "playPauseViolin",
+                        icon = icon("play"))
+    }
+  })
+  
+  observeEvent(input$resetViolin, {
+    rv$animating <- FALSE
+    updateActionButton(session, "playPauseViolin",
+                      icon = icon("play"))
+    updateSliderInput(session, "violinYearSlider",
+                     value = 1985)
+  })
+
+  output$ageViolinPlotAnimated <- renderPlotly({
+    year_data <- filtered_data() %>%
+      filter(year == input$violinYearSlider)
+    
+    p <- create_animated_violin_plot(year_data, input$violinYearSlider)
+    
+    ggplotly(p) %>%
+      layout(
+        showlegend = FALSE,
+        margin = list(l = 50, r = 50, b = 100, t = 50)
+      )
+  })
+
   output$timeSeriesPlot <- renderPlotly({
     p <- create_time_series(filtered_data())
     ggplotly(p) %>% 
@@ -45,6 +95,12 @@ server <- function(input, output, session) {
 
   output$ageTimeSeries <- renderPlotly({
     p <- create_age_time_series(filtered_data())
+    ggplotly(p) %>% 
+      layout(legend = list(orientation = "h", y = -0.2))
+  })
+
+  output$genderTimeSeriesOverview <- renderPlotly({
+    p <- create_gender_overview(filtered_data(), input$genderTimeSeriesOverviewPlotType)
     ggplotly(p) %>% 
       layout(legend = list(orientation = "h", y = -0.2))
   })
@@ -155,16 +211,6 @@ server <- function(input, output, session) {
          alt = "Animated GDP plot")
   }, deleteFile = TRUE)
 
-  output$gdpCorrelationPlot <- renderPlotly({
-    p <- create_gdp_correlation_analysis(filtered_data())
-    ggplotly(p)
-  })
-
-  output$gdpQuantilePlot <- renderPlotly({
-    p <- create_gdp_quantile_analysis(filtered_data())
-    ggplotly(p)
-  })
-
   output$downloadData <- downloadHandler(
     filename = function() {
       paste0("suicide_data_", format(Sys.Date(), "%Y%m%d"), ".csv")
@@ -173,7 +219,7 @@ server <- function(input, output, session) {
       write.csv(filtered_data(), file, row.names = FALSE)
     }
   )
-  
+
   observe({
     ranges <- get_data_ranges(data)
     

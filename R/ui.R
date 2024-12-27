@@ -53,7 +53,7 @@ ui <- dashboardPage(
               title = "Suicide Rates by Gender",
               radioButtons("genderPlotType", "Plot Type:",
                          choices = c("line", "pie", "bar"),
-                         selected = "line", inline = TRUE),
+                         selected = "bar", inline = TRUE),
               plotlyOutput("genderPlot")
           ),
           box(width = 6,
@@ -69,6 +69,15 @@ ui <- dashboardPage(
               title = "Age Groups Over Time",
               plotlyOutput("ageTimeSeries")
           )
+        ),
+        fluidRow(
+          box(width = 12,
+              title = "Suicide Rates by Gender",
+              radioButtons("genderTimeSeriesOverviewPlotType", "Plot Type:",
+                         choices = c("line", "pie", "bar"),
+                         selected = "line", inline = TRUE),
+              plotlyOutput("genderTimeSeriesOverview")
+          ),
         )
       ),
 
@@ -115,11 +124,17 @@ ui <- dashboardPage(
                   title = "Top Countries",
                   sliderInput("topN", "Number of countries:", 
                             min = 5, max = 50, value = 20),
-                  plotlyOutput("countryBarPlot")
+                  div(
+                    style = "height:600px; overflow-y: scroll;",
+                    plotlyOutput("countryBarPlot")
+                ),
               ),
               box(width = 6,
-                  title = "Gender Distribution",
-                  plotlyOutput("countryGenderPlot")
+                    title = "Gender Distribution",
+                    div(
+                  style = "height:600px; overflow-y: scroll;",
+                  plotlyOutput("countryGenderPlot", height = "1500px")
+                )
               )
             ),
             fluidRow(
@@ -172,32 +187,55 @@ ui <- dashboardPage(
                   title = "Age Evolution Heatmap",
                   plotlyOutput("ageHeatmap")
               )
+            ),
+            fluidRow(
+              box(
+                width = 12,
+                title = "Age Distribution Over Time",
+                fluidRow(
+                  column(
+                    width = 3,
+                    sliderInput("violinYearSlider",
+                                "Select Year:",
+                                min = 1985,
+                                max = 2015,
+                                value = 1985,
+                                step = 1,
+                                sep = ""),
+                    div(
+                      style = "margin-top: 20px;",
+                      actionButton("playPauseViolin", "Play/Pause", icon = icon("play")),
+                      actionButton("resetViolin", "Reset", icon = icon("sync"))
+                    )
+                  ),
+                  column(
+                    width = 9,
+                    plotlyOutput("ageViolinPlotAnimated", height = "500px")
+                  )
+                )
+              )
             )
           )
         )
       ),
 
       tabItem(tabName = "economic",
-        fluidRow(
-          box(width = 12,
-              title = "GDP vs Suicide Rate Relationship",
-              plotlyOutput("gdpScatterPlot")
-          )
-        ),
-        fluidRow(
-          box(width = 6,
-              title = "GDP Evolution",
-              imageOutput("animatedGdpPlot")
-          ),
-          box(width = 6,
-              title = "GDP Correlation by Continent",
-              plotlyOutput("gdpCorrelationPlot")
-          )
-        ),
-        fluidRow(
-          box(width = 12,
-              title = "GDP Quantile Analysis",
-              plotlyOutput("gdpQuantilePlot")
+      tabBox(width = 12,
+      tabPanel(title = "GDP",
+            fluidRow(
+              box(width = 12,
+                  title = "GDP vs Suicide Rate Relationship",
+                  plotlyOutput("gdpScatterPlot")
+              )
+            ),
+      ),
+      tabPanel(title = "GDP animated",
+            fluidRow(
+              box(width = 6,
+                  title = "GDP Evolution",
+                  imageOutput("animatedGdpPlot")
+              )
+            )
           )
         )
       )
