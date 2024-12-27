@@ -147,15 +147,21 @@ create_continent_bar <- function(data, plot_type = "bar") {
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
   } else {
-    ggplot(continent_data, aes(x = "", y = suicide_rate, fill = continent)) +
-      geom_bar(stat = "identity", width = 1) +
-      coord_polar("y", start = 0) +
-      scale_fill_viridis_d() +
-      labs(
+    pie_data <- continent_data %>%
+    group_by(continent) %>%
+    summarise(suicide_rate = mean(suicide_rate, na.rm = FALSE))
+
+    plot_ly(
+      pie_data,
+      labels = ~continent,
+      values = ~suicide_rate,
+      type = 'pie',
+      marker = list(colors = viridis::viridis(n = length(unique(continent_data$continent))))
+    ) %>%
+      layout(
         title = "Distribution of Suicides by Continent",
-        fill = "Continent"
-      ) +
-      theme_void()
+        showlegend = TRUE
+      )
   }
 }
 
@@ -301,6 +307,8 @@ create_country_age_proportion <- function(data) {
 
 create_country_choropleth <- function(data) {
   require(maps)
+
+  world_data <- prepare_map_data(data)
   
   country_data <- data %>%
     group_by(country) %>%
@@ -497,6 +505,7 @@ create_animated_violin_plot <- function(data, selected_year = NULL) {
     geom_violin(trim = FALSE, alpha = 0.8) +
     geom_boxplot(width = 0.2, fill = "white", alpha = 0.5, outlier.shape = NA) +
     scale_fill_viridis_d() +
+    scale_y_continuous(limits = c(0, 190)) +
     labs(
       title = "Distribution of Suicide Rates by Age Group",
       subtitle = "Year: {closest_state}",
@@ -518,95 +527,6 @@ create_animated_violin_plot <- function(data, selected_year = NULL) {
   } else {
     base_plot
   }
-}
-
-create_age_violin_plot <- function(data) {
-  ggplot(data, aes(x = age_group, y = suicide_rate, fill = age_group)) +
-    geom_violin(trim = FALSE) +
-    geom_boxplot(width = 0.1, fill = "white", alpha = 0.5) +
-    scale_fill_viridis_d() +
-    labs(
-      title = "Distribution of Suicide Rates by Age Group",
-      subtitle = "Violin plot with embedded box plots",
-      x = "Age Group",
-      y = "Suicide Rate (per 100k population)"
-    ) +
-    theme_minimal() +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "none",
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 12)
-    )
-}
-
-create_animated_age_trends <- function(data) {
-  p <- data %>%
-    group_by(year, age_group) %>%
-    summarise(
-      suicide_rate = mean(suicide_rate),
-      .groups = 'drop'
-    ) %>%
-    ggplot(aes(x = age_group, y = suicide_rate, fill = age_group)) +
-    geom_col() +
-    scale_fill_viridis_d() +
-    labs(
-      title = "Suicide Rates by Age Group",
-      subtitle = "Year: {frame_time}",
-      x = "Age Group",
-      y = "Suicide Rate (per 100k population)"
-    ) +
-    theme_minimal() +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      legend.position = "none"
-    ) +
-    transition_time(year) +
-    ease_aes('linear')
-    
-  return(p)
-}
-
-create_age_heatmap <- function(data) {
-  data %>%
-    group_by(year, age_group) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
-    ggplot(aes(x = year, y = age_group, fill = suicide_rate)) +
-    geom_tile() +
-    scale_fill_viridis_c(name = "Suicide Rate\n(per 100k)") +
-    labs(
-      title = "Evolution of Age-Specific Suicide Rates",
-      subtitle = "Heatmap showing temporal patterns by age group",
-      x = "Year",
-      y = "Age Group"
-    ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 12)
-    )
-}
-
-create_age_gender_interaction <- function(data) {
-  data %>%
-    group_by(age_group, sex) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
-    ggplot(aes(x = age_group, y = suicide_rate, fill = sex)) +
-    geom_bar(stat = "identity", position = "dodge") +
-    scale_fill_manual(values = c("Female" = "#FF9DA6", "Male" = "#4B9CD3")) +
-    labs(
-      title = "Interaction between Age and Gender in Suicide Rates",
-      subtitle = "Comparing gender differences across age groups",
-      x = "Age Group",
-      y = "Suicide Rate (per 100k population)",
-      fill = "Gender"
-    ) +
-    theme_minimal() +
-    theme(
-      axis.text.x = element_text(angle = 45, hjust = 1),
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 12)
-    )
 }
 
 create_gdp_suicide_scatter <- function(data) {
@@ -663,6 +583,7 @@ create_animated_gdp_plot <- function(data, selected_year = NULL) {
     geom_point(alpha = 0.6) +
     scale_size_continuous(range = c(2, 20)) +
     scale_x_continuous(labels = scales::dollar_format()) +
+    scale_y_continuous(limits = c(0, 160)) +
     scale_color_viridis_d() +
     labs(
       title = "GDP per Capita vs Suicide Rate",

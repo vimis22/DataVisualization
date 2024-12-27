@@ -228,24 +228,6 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
-  output$animatedAgeTrends <- renderImage({
-    outfile <- tempfile(fileext = '.gif')
-    
-    anim <- create_animated_age_trends(filtered_data())
-    anim_save(outfile, animation = anim)
-    
-    list(src = outfile,
-         contentType = 'image/gif',
-         width = 800,
-         height = 400,
-         alt = "Animated age trends")
-  }, deleteFile = TRUE)
-
-  output$ageHeatmap <- renderPlotly({
-    p <- create_age_heatmap(filtered_data())
-    ggplotly(p)
-  })
-
   output$gdpScatterPlot <- renderPlotly({
     p <- create_gdp_suicide_scatter(filtered_data())
     ggplotly(p)

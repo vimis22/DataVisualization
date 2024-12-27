@@ -26,9 +26,6 @@ ui <- dashboardPage(
       selectInput("gender", "Select Gender:",
                   choices = c("Male", "Female"),
                   multiple = TRUE),
-      sliderInput("gdpRange", "GDP per Capita Range:",
-                  min = 0, max = 100000,
-                  value = c(0, 100000))
     )
   ),
 
@@ -171,46 +168,35 @@ ui <- dashboardPage(
               )
             )
           ),
-          tabPanel("Age Analysis",
-            fluidRow(
-              box(width = 6,
-                  title = "Age Distribution",
-                  plotlyOutput("ageViolinPlot")
-              ),
-              box(width = 6,
-                  title = "Age Trends",
-                  imageOutput("animatedAgeTrends")
-              )
-            ),
-            fluidRow(
-              box(width = 12,
-                  title = "Age Evolution Heatmap",
-                  plotlyOutput("ageHeatmap")
-              )
-            ),
+          tabPanel(
+            "Age Analysis",
             fluidRow(
               box(
                 width = 12,
                 title = "Age Distribution Over Time",
                 fluidRow(
                   column(
-                    width = 3,
-                    sliderInput("violinYearSlider",
-                                "Select Year:",
-                                min = 1985,
-                                max = 2015,
-                                value = 1985,
-                                step = 1,
-                                sep = ""),
+                    width = 12,
+                    plotlyOutput("ageViolinPlotAnimated", height = "500px")
+                  )
+                ),
+                fluidRow(
+                  column(
+                    width = 12,
+                    sliderInput(
+                      "violinYearSlider",
+                      "Select Year:",
+                      min = 1985,
+                      max = 2015,
+                      value = 1985,
+                      step = 1,
+                      sep = ""
+                    ),
                     div(
-                      style = "margin-top: 20px;",
+                      style = "margin-top: 20px; text-align: center;",
                       actionButton("playPauseViolin", "Play/Pause", icon = icon("play")),
                       actionButton("resetViolin", "Reset", icon = icon("sync"))
                     )
-                  ),
-                  column(
-                    width = 9,
-                    plotlyOutput("ageViolinPlotAnimated", height = "500px")
                   )
                 )
               )
