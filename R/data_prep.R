@@ -4,16 +4,61 @@ library(zoo)
 
 process_suicide_data <- function(file_path) {
   df <- readr::read_csv(file_path) %>%
+    filter(
+      !is.na(suicides_no), 
+      !is.na(population),
+      !is.na(year),
+      population > 0,
+      year != 2016
+    )
 
-    filter(!is.na(suicides_no), 
-          !is.na(population),
-          !is.na(year),
-          population > 0) %>%
+  country_mapping <- c(
+      "Antigua and Barbuda" = "Antigua & Barbuda",
+      "Bosnia and Herzegovina" = "Bosnia & Herzegovina", 
+      "Czech Republic" = "Czechia",
+      "Saint Kitts and Nevis" = "St. Kitts & Nevis",
+      "Saint Lucia" = "St. Lucia",
+      "Saint Vincent and Grenadines" = "St. Vincent & Grenadines",
+      "Trinidad and Tobago" = "Trinidad & Tobago",
+      "United Kingdom" = "UK",
+      "United States" = "USA",
+      "Macau" = "Macao SAR China"
+  )
 
+  df <- df %>%
     mutate(
       year = as.integer(year),
-      
       suicide_rate = as.numeric(suicides_no) / as.numeric(population) * 100000,
+
+
+      country = case_when(
+        country %in% names(country_mapping) ~ country_mapping[country],
+        TRUE ~ country
+      ),
+
+      continent = countrycode(sourcevar = country,
+                      origin = "country.name",
+                      destination = "continent"),
+      
+      continent = case_when(
+        country %in% c(
+          'Argentina', 'Brazil', 'Chile', 'Colombia', 
+          'Ecuador', 'Guyana', 'Paraguay', 'Suriname', 
+          'Uruguay', 'Antigua & Barbuda', 'Aruba', 'Bahamas', 
+          'Barbados', 'Belize', 'Costa Rica', 'Cuba', 'Dominica', 
+          'El Salvador', 'Grenada', 'Guatemala', 'Jamaica', 
+          'Nicaragua', 'Panama', 'Puerto Rico', 'St. Kitts & Nevis', 
+          'St. Lucia', 'St. Vincent & Grenadines', 'Trinidad & Tobago'
+        ) ~ 'South America',
+        continent == 'Americas' ~ 'North America',
+        TRUE ~ continent
+      ),
+      
+      continent_detailed = continent,
+      continent_map = case_when(
+        continent %in% c("North America", "South America") ~ "Americas",
+        TRUE ~ continent
+      ),
       
       age_group = factor(age,
                         levels = c("5-14 years", 
@@ -28,42 +73,13 @@ process_suicide_data <- function(file_path) {
                   "male" = "Male",
                   "female" = "Female"),
       
-      gdp_per_capita = as.numeric(gsub("[^0-9.]", "", gdp_for_year)) / population,
-      
-      continent = countrycode(sourcevar = country,
-                            origin = "country.name",
-                            destination = "continent"),
-      
-      continent = case_when(
-        country %in% c('Argentina', 'Brazil', 'Chile', 'Colombia', 
-                      'Ecuador', 'Guyana', 'Paraguay', 'Suriname', 
-                      'Uruguay') ~ 'South America',
-        continent == 'Americas' ~ 'North America',
-        TRUE ~ continent
-      )
-    ) %>%
-
-    mutate(
-      country = case_when(
-        country == "Russian Federation" ~ "Russia",
-        country == "Republic of Korea" ~ "South Korea",
-        country == "United States of America" ~ "United States",
-        TRUE ~ country
-      )
-    ) %>%
-
-    filter(
-      !is.na(suicide_rate),
-      !is.na(year),
-      !is.na(gdp_per_capita),
-      population > 0,
-      year != 2016 
+      gdp_per_capita = as.numeric(gsub("[^0-9.]", "", gdp_for_year)) / population
     )
-  
+
+
   df <- df %>%
     group_by(country) %>%
     mutate(
-
       yoy_change = (suicide_rate - lag(suicide_rate)) / lag(suicide_rate) * 100,
       
       rolling_avg = zoo::rollmean(suicide_rate, k = 3, fill = NA, align = "right"),
@@ -71,7 +87,7 @@ process_suicide_data <- function(file_path) {
       rate_zscore = scale(suicide_rate)
     ) %>%
     ungroup()
-  
+
   df <- df %>%
     mutate(
       gdp_category = case_when(
@@ -83,7 +99,7 @@ process_suicide_data <- function(file_path) {
       gdp_category = factor(gdp_category, 
                           levels = c("Low", "Medium-Low", "Medium-High", "High"))
     )
-  
+
   df <- df %>%
     mutate(
       population_category = case_when(
@@ -96,7 +112,6 @@ process_suicide_data <- function(file_path) {
                                  levels = c("Small", "Medium-Small", 
                                           "Medium-Large", "Large"))
     )
-  
   country_trends <- df %>%
     group_by(country) %>%
     summarise(
@@ -113,7 +128,7 @@ process_suicide_data <- function(file_path) {
       } else NA_real_,
       .groups = 'drop'
     )
-  
+
   df <- df %>%
     left_join(country_trends, by = "country") %>%
     mutate(
@@ -123,7 +138,7 @@ process_suicide_data <- function(file_path) {
         TRUE ~ "No Significant Trend"
       )
     )
-  
+
   gender_metrics <- df %>%
     group_by(country, year) %>%
     summarize(
@@ -133,23 +148,11 @@ process_suicide_data <- function(file_path) {
                    mean(suicide_rate[sex == "Female"]),
       .groups = 'drop'
     )
-  
+
   df <- df %>%
     left_join(gender_metrics, by = c("country", "year"))
-  
-  return(df)
-}
 
-get_data_ranges <- function(data) {
-  list(
-    year_range = range(data$year),
-    gdp_range = range(data$gdp_per_capita),
-    suicide_rate_range = range(data$suicide_rate),
-    population_range = range(data$population),
-    countries = sort(unique(data$country)),
-    continents = sort(unique(data$continent)),
-    age_groups = levels(data$age_group)
-  )
+  return(df)
 }
 
 validate_country_names <- function(data) {
@@ -163,4 +166,16 @@ validate_country_names <- function(data) {
   }
   
   return(mismatched)
+}
+
+get_data_ranges <- function(data) {
+  list(
+    year_range = range(data$year),
+    gdp_range = range(data$gdp_per_capita),
+    suicide_rate_range = range(data$suicide_rate),
+    population_range = range(data$population),
+    countries = sort(unique(data$country)),
+    continents = sort(unique(data$continent_detailed)),
+    age_groups = levels(data$age_group)
+  )
 }

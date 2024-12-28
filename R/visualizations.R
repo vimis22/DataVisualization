@@ -7,25 +7,33 @@ library(scales)
 library(ggalt)
 
 create_time_series <- function(data) {
+  avg_rate <- mean(data$suicide_rate, na.rm = TRUE)
+  
   data %>% 
     group_by(year) %>%
     summarise(suicide_rate = mean(suicide_rate)) %>%
     ggplot(aes(x = year, y = suicide_rate)) +
     geom_line(color = "#2C7BB6", size = 1) +
     geom_point(color = "#2C7BB6", size = 2) +
+    geom_hline(yintercept = avg_rate, 
+               linetype = "dashed", 
+               color = "red",
+               alpha = 0.7) +
+    annotate("text", 
+             x = min(data$year), 
+             y = avg_rate + 0.5,
+             label = paste("Average:", round(avg_rate, 2)),
+             color = "red",
+             hjust = 0) +
     scale_x_continuous(breaks = seq(min(data$year), max(data$year), by = 5)) +
     scale_y_continuous(labels = function(x) paste0(round(x, 1), " per 100k")) +
     labs(
       title = "Global Suicide Rates Over Time",
-      subtitle = "Average suicide rates per 100,000 population",
+      subtitle = "Annual average suicide rates with global average reference line",
       x = "Year",
-      y = "Suicide Rate"
+      y = "Suicide Rate per 100,000 Population"
     ) +
-    theme_minimal() +
-    theme(
-      plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 12)
-    )
+    theme_minimal()
 }
 
 create_gender_overview <- function(data, plot_type = "line") {
@@ -132,50 +140,54 @@ create_age_time_series <- function(data) {
 
 create_continent_bar <- function(data, plot_type = "bar") {
   continent_data <- data %>%
-    group_by(continent) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop')
+    group_by(continent_detailed) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate, na.rm = TRUE),
+      .groups = 'drop'
+    )
   
   if(plot_type == "bar") {
-    ggplot(continent_data, aes(x = reorder(continent, -suicide_rate), y = suicide_rate, fill = continent)) +
+    ggplot(continent_data, 
+           aes(x = reorder(continent_detailed, -suicide_rate), 
+               y = suicide_rate, 
+               fill = continent_detailed)) +
       geom_bar(stat = "identity") +
       scale_fill_viridis_d() +
       labs(
         title = "Suicide Rates by Continent",
         x = "Continent",
-        y = "Suicide Rate (per 100k population)"
+        y = "Suicide Rate per 100,000 Population"
       ) +
       theme_minimal() +
       theme(axis.text.x = element_text(angle = 45, hjust = 1))
   } else {
-    pie_data <- continent_data %>%
-    group_by(continent) %>%
-    summarise(suicide_rate = mean(suicide_rate, na.rm = FALSE))
-
     plot_ly(
-      pie_data,
-      labels = ~continent,
+      continent_data,
+      labels = ~continent_detailed,
       values = ~suicide_rate,
       type = 'pie',
-      marker = list(colors = viridis::viridis(n = length(unique(continent_data$continent))))
-    ) %>%
-      layout(
-        title = "Distribution of Suicides by Continent",
-        showlegend = TRUE
-      )
+      marker = list(colors = viridis(n = nrow(continent_data))),
+      textinfo = 'label+percent'
+    )
   }
 }
 
 create_continent_gender_bar <- function(data) {
   data %>%
-    group_by(continent, sex) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
-    ggplot(aes(x = reorder(continent, -suicide_rate), y = suicide_rate, fill = sex)) +
+    group_by(continent_detailed, sex) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate, na.rm = TRUE),
+      .groups = 'drop'
+    ) %>%
+    ggplot(aes(x = reorder(continent_detailed, -suicide_rate), 
+               y = suicide_rate, 
+               fill = sex)) +
     geom_bar(stat = "identity", position = "dodge") +
     scale_fill_manual(values = c("Female" = "#FF9DA6", "Male" = "#4B9CD3")) +
     labs(
       title = "Suicide Rates by Continent and Gender",
       x = "Continent",
-      y = "Suicide Rate (per 100k population)",
+      y = "Suicide Rate per 100,000 Population",
       fill = "Gender"
     ) +
     theme_minimal() +
@@ -184,15 +196,20 @@ create_continent_gender_bar <- function(data) {
 
 create_continent_age_bar <- function(data) {
   data %>%
-    group_by(continent, age_group) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
-    ggplot(aes(x = reorder(continent, -suicide_rate), y = suicide_rate, fill = age_group)) +
+    group_by(continent_detailed, age_group) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate, na.rm = TRUE),
+      .groups = 'drop'
+    ) %>%
+    ggplot(aes(x = reorder(continent_detailed, -suicide_rate), 
+               y = suicide_rate, 
+               fill = age_group)) +
     geom_bar(stat = "identity", position = "dodge") +
     scale_fill_viridis_d() +
     labs(
       title = "Suicide Rates by Continent and Age Group",
       x = "Continent",
-      y = "Suicide Rate (per 100k population)",
+      y = "Suicide Rate per 100,000 Population",
       fill = "Age Group"
     ) +
     theme_minimal() +
@@ -201,16 +218,19 @@ create_continent_age_bar <- function(data) {
 
 create_continent_time_series <- function(data) {
   data %>%
-    group_by(year, continent) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
-    ggplot(aes(x = year, y = suicide_rate, color = continent)) +
+    group_by(year, continent_detailed) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate, na.rm = TRUE),
+      .groups = 'drop'
+    ) %>%
+    ggplot(aes(x = year, y = suicide_rate, color = continent_detailed)) +
     geom_line(size = 1) +
     geom_point(size = 2) +
     scale_color_viridis_d() +
     labs(
       title = "Suicide Rates by Continent Over Time",
       x = "Year",
-      y = "Suicide Rate (per 100k population)",
+      y = "Suicide Rate per 100,000 Population",
       color = "Continent"
     ) +
     theme_minimal()
@@ -221,23 +241,27 @@ create_continent_choropleth <- function(data) {
   require(sf)
   
   continent_data <- data %>%
-    group_by(continent) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop')
+    group_by(continent_map) %>%
+    summarise(
+      suicide_rate = mean(suicide_rate, na.rm = TRUE),
+      .groups = 'drop'
+    )
   
   world <- map_data("world")
-  world$continent <- countrycode::countrycode(
-    world$region,
-    origin = 'country.name',
-    destination = 'continent'
-  )
+  world$continent <- countrycode(world$region,
+                                origin = "country.name",
+                                destination = "continent")
   
-  world <- left_join(world, continent_data, by = "continent")
+  world <- left_join(world, continent_data, by = c("continent" = "continent_map"))
   
   ggplot(world, aes(x = long, y = lat, group = group, fill = suicide_rate)) +
     geom_polygon(color = "white", size = 0.1) +
     coord_map(projection = "mercator") +
-    scale_fill_viridis_c(name = "Suicide Rate\n(per 100k)") +
-    labs(title = "Suicide Rates by Continent") +
+    scale_fill_viridis_c(
+      name = "Suicide Rate\n(per 100k)",
+      na.value = "gray80"
+    ) +
+    labs(title = "Global Suicide Rates by Continent") +
     theme_void()
 }
 
@@ -245,14 +269,14 @@ create_country_bar <- function(data, top_n = 20) {
   country_continent <- data %>%
     group_by(country) %>%
     slice(1) %>%
-    select(country, continent)
+    select(country, continent_detailed)
   
   data %>%
     group_by(country) %>%
     summarise(suicide_rate = mean(suicide_rate), .groups = 'drop') %>%
     left_join(country_continent, by = "country") %>%
     top_n(top_n, suicide_rate) %>%
-    ggplot(aes(x = reorder(country, suicide_rate), y = suicide_rate, fill = continent)) +
+    ggplot(aes(x = reorder(country, suicide_rate), y = suicide_rate, fill = continent_detailed)) +
     geom_bar(stat = "identity") +
     scale_fill_viridis_d() +
     coord_flip() +
@@ -308,11 +332,12 @@ create_country_age_proportion <- function(data) {
 create_country_choropleth <- function(data) {
   require(maps)
 
-  world_data <- prepare_map_data(data)
-  
   country_data <- data %>%
     group_by(country) %>%
-    summarise(suicide_rate = mean(suicide_rate), .groups = 'drop')
+    summarise(
+      suicide_rate = mean(suicide_rate, na.rm = TRUE),
+      .groups = 'drop'
+    )
   
   world <- map_data("world")
   world <- left_join(world, country_data, by = c("region" = "country"))
@@ -320,8 +345,11 @@ create_country_choropleth <- function(data) {
   ggplot(world, aes(x = long, y = lat, group = group, fill = suicide_rate)) +
     geom_polygon(color = "white", size = 0.1) +
     coord_map(projection = "mercator") +
-    scale_fill_viridis_c(name = "Suicide Rate\n(per 100k)") +
-    labs(title = "Suicide Rates by Country") +
+    scale_fill_viridis_c(
+      name = "Suicide Rate\n(per 100k)",
+      na.value = "gray80"
+    ) +
+    labs(title = "Global Suicide Rates by Country") +
     theme_void()
 }
 
@@ -577,8 +605,8 @@ create_animated_gdp_plot <- function(data, selected_year = NULL) {
     mutate(year = as.integer(year)) %>%
     {if (!is.null(selected_year)) filter(., year == selected_year) else .} %>%
     ggplot(aes(x = gdp_per_capita, 
-               y = suicide_rate,
-               size = population,
+        y = suicide_rate,
+        size = population,
                color = continent)) +
     geom_point(alpha = 0.6) +
     scale_size_continuous(range = c(2, 20)) +
@@ -596,7 +624,7 @@ create_animated_gdp_plot <- function(data, selected_year = NULL) {
     theme_minimal()
     
   if (is.null(selected_year)) {
-    base_plot + 
+    base_plot +
       transition_time(year) +
       ease_aes('linear')
   } else {

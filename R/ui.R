@@ -25,7 +25,7 @@ ui <- dashboardPage(
                   multiple = TRUE),
       selectInput("gender", "Select Gender:",
                   choices = c("Male", "Female"),
-                  multiple = TRUE),
+                  multiple = TRUE)
     )
   ),
 
