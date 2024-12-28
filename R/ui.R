@@ -2,6 +2,36 @@ ui <- dashboardPage(
   dashboardHeader(title = "Global Suicide Rates Analysis"),
   
   dashboardSidebar(
+    tags$head(
+      tags$style(HTML("
+        .main-header {
+          position: fixed;
+          width: 100%;
+          top: 0;
+          z-index: 1030;
+        }
+        .main-sidebar {
+          position: fixed;
+          top: 50px;
+          height: calc(100vh - 50px);
+          padding-top: 0;
+        }
+        .sidebar {
+          height: 100%;
+          overflow-y: auto;
+          width: inherit;
+          padding-top: 0;
+        }
+        .content-wrapper {
+          margin-top: 50px;
+          margin-left: 230px;
+          padding-top: 0px;
+        }
+        .sidebar-menu {
+          margin-top: 0;
+        }
+      "))
+    ),
     sidebarMenu(
       menuItem("Overview", tabName = "overview", icon = icon("dashboard")),
       menuItem("Geographic Analysis", tabName = "geographic", icon = icon("globe")),
