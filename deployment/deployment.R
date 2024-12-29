@@ -12,6 +12,8 @@ library(ggplot2)
 library(gridExtra)
 library(RColorBrewer)
 library(ggalt)
+library(maps)
+library(mapproj)
 
 # Data preprocessing
 
@@ -102,13 +104,12 @@ create_time_series <- function(data) {
     scale_x_continuous(breaks = seq(min(data$year), max(data$year), by = 5)) +
     scale_y_continuous(labels = function(x) paste0(round(x, 1), " per 100k")) +
     labs(
-      title = "Global Suicide Rate Over Time",
-      subtitle = "Annual average suicide rates with global average reference line",
+      title = "Global Suicide Rate Over Time in Years 1985 - 2015",
+      subtitle = "The global average suicide rate; the mean over this period is approximately 13.",
       x = "Year",
       y = "Suicide Rate per 100,000 Population"
     )
 }
-
 
 p1 <- create_time_series(data)
 #print(p1)
@@ -193,7 +194,8 @@ create_age_overview <- function(data, plot_type = "bar") {
             alpha = 0.7) +
       scale_fill_viridis_d() +
       labs(
-        title = "Average Suicide Rates by Age Group",
+        title = "Average Suicide Rates by Age Group in Years 1985-2015",
+        subtitle = "Average suicide rates in time by age. Higher age groups are at more risk of suicide.",
         x = "Age Group",
         y = "Suicide Rate (per 100k population)",
         fill = "Age Group"
@@ -203,7 +205,7 @@ create_age_overview <- function(data, plot_type = "bar") {
   }
 }
 
-p3 <- create_age_overview(data, "bar")
+p3 <- create_age_overview(data, "pie")
 #print(p3)
 
 create_age_time_series <- function(data) {
@@ -219,8 +221,8 @@ create_age_time_series <- function(data) {
             alpha = 0.7) +
     scale_x_continuous(breaks = seq(min(data$year), max(data$year), by = 5)) +
     labs(
-      title = "Suicide Rates by Age Group Over Time",
-      subtitle = "Annual rates per 100,000 population",
+      title = "Suicide Rates per 100k people by Age Group Over Time",
+      subtitle = "Annual rates of suicide split into age bands. Across all age bands, the suicide rate is decreasing.",
       x = "Year",
       y = "Suicide Rate per 100k Population",
       color = "Age Group"
@@ -246,7 +248,8 @@ create_continent_bar <- function(data, plot_type = "bar") {
             color = "red",
             alpha = 0.7) +
       labs(
-        title = "Suicide Rates by Continent",
+        title = "Average Suicide Rates per 100k people by Continent through 1985-2015",
+        subtitle = "Average suicide rate by continent. It should be noted that Africa has poor data quality.",
         x = "Continent",
         y = "Suicide Rate per 100,000 Population"
       ) +
@@ -280,7 +283,8 @@ create_continent_gender_bar <- function(data) {
             alpha = 0.7) +
     scale_fill_manual(values = c("Female" = "pink", "Male" = blue)) +
     labs(
-      title = "Suicide Rates by Continent and Gender",
+      title = "Average Suicide Rates by Continent and Gender through 1985-2015",
+      subtitle = "Throughout all continents, males are 3x more likely than females to die by suicide.",
       x = "Continent",
       y = "Suicide Rate per 100,000 Population",
       fill = "Gender"
@@ -305,7 +309,8 @@ create_continent_age_bar <- function(data) {
             alpha = 0.7) +
     scale_fill_viridis_d() +
     labs(
-      title = "Suicide Rates by Continent and Age Group",
+      title = "Average Suicide Rates by Continent and Age Group through 1985-2015",
+      subtitle = "When controlled for continent, different patterns emerge in the suicide rate in age groups.",
       x = "Continent",
       y = "Suicide Rate per 100,000 Population",
       fill = "Age Group"
@@ -314,7 +319,7 @@ create_continent_age_bar <- function(data) {
     theme(axis.text.x = element_text(angle = 45, hjust = 1))
 }
 
-p6 <- create_continent_gender_bar(data)
+p6 <- create_continent_age_bar(data)
 #print(p6)
 
 create_continent_time_series <- function(data) {
@@ -329,7 +334,8 @@ create_continent_time_series <- function(data) {
             alpha = 0.7) +
     scale_color_viridis_d() +
     labs(
-      title = "Suicide Rates by Continent Over Time",
+      title = "Suicide Rates by Continent Over Time through 1985-2015",
+      subtitle = "When showing suicide rate over time, it's visible that Africa's data quality drops in 1996.",
       x = "Year",
       y = "Suicide Rate per 100,000 Population",
       color = "Continent"
@@ -346,7 +352,8 @@ create_continent_choropleth <- function(data) {
   world <- map_data("world")
   world$continent <- countrycode(world$region,
                                 origin = "country.name",
-                                destination = "continent")
+                                destination = "continent",
+                                warn = FALSE)
   
   world <- left_join(world, continent_data, 
                     by = c("continent" = "continent_map"))
@@ -387,7 +394,8 @@ create_country_bar <- function(data, top_n = 20) {
     scale_fill_viridis_d() +
     coord_flip() +
     labs(
-      title = paste("Top", top_n, "Countries by Suicide Rate"),
+      title = paste("Top", top_n, "Countries by Average Suicide Rate through 1985-2015"),
+      subtitle = "According to this dataset, the highest suicide rate of countries is in Europe.",
       x = "Country",
       y = "Suicide Rate per 100,000 Population",
       fill = "Continent"
@@ -569,6 +577,14 @@ create_gdp_suicide_scatter <- function(data) {
              size = total_population,
              color = continent)) +
     geom_point(alpha = 0.6, aes(text = country)) +
+    geom_smooth(
+      method = "lm",
+      se = TRUE,
+      color = "black",
+      size = 0.5,
+      alpha = 0.2,
+      aes(weight = total_population)
+    ) +
     scale_size_continuous(
       range = c(2, 20),
       labels = scales::comma
@@ -576,7 +592,8 @@ create_gdp_suicide_scatter <- function(data) {
     scale_x_continuous(labels = scales::dollar_format()) +
     scale_color_viridis_d() +
     labs(
-      title = "GDP per Capita vs Suicide Rate",
+      title = "GDP per Capita vs Average Suicide Rate, 1985-2015",
+      subtitle = "Line of best fit shows a weak relationship with GDP per Capita to suicide",
       x = "GDP per Capita",
       y = "Suicide Rate per 100,000 Population",
       color = "Continent",
@@ -656,7 +673,7 @@ create_country_choropleth <- function(data) {
     rename(region = country)
   
   world <- map_data("world")
-  world <- left_join(world, country_data, by = "region")
+  world <- left_join(world, country_data, by = "region", warn = FALSE)
   
   ggplot(world, aes(x = long, y = lat, group = group, fill = suicide_rate)) +
     geom_polygon(color = "white", size = 0.1) +
@@ -668,6 +685,8 @@ create_country_choropleth <- function(data) {
     labs(title = "Global Suicide Rates by Country") +
     theme_void()
 }
+
+#c11 <- create_country_choropleth(data)
 
 ui <- dashboardPage(
   dashboardHeader(title = "Global Suicide Rates Analysis"),
@@ -708,6 +727,9 @@ ui <- dashboardPage(
       menuItem("Geographic Analysis", tabName = "geographic", icon = icon("globe")),
       menuItem("Demographics", tabName = "demographics", icon = icon("users")),
       menuItem("Economic Factors", tabName = "economic", icon = icon("chart-line")),
+
+        downloadButton("downloadPDF", "Download Report", 
+                style = "margin: 10px 15px; width: 90%"),
       
       hr(),
       sliderInput("yearRange", "Year Range:",
@@ -966,7 +988,7 @@ server <- function(input, output, session) {
         filter(., continent %in% input$continents)
         else .} %>%
       {if (!is.null(input$ageGroups) && length(input$ageGroups) > 0)
-        filter(., age_group %in% input$ageGroups)
+        filter(., age %in% input$ageGroups)
         else .} %>%
       {if (!is.null(input$gender) && length(input$gender) > 0)
         filter(., sex %in% input$gender)
@@ -1169,26 +1191,14 @@ server <- function(input, output, session) {
     ggplotly(p)
   })
 
-  output$animatedGdpPlot <- renderImage({
-    outfile <- tempfile(fileext = '.gif')
-    
-    anim <- create_animated_gdp_plot(filtered_data())
-    anim_save(outfile, animation = anim)
-    
-    list(src = outfile,
-         contentType = 'image/gif',
-         width = 800,
-         height = 400,
-         alt = "Animated GDP plot")
-  }, deleteFile = TRUE)
-
-  output$downloadData <- downloadHandler(
+  output$downloadPDF <- downloadHandler(
     filename = function() {
-      paste0("suicide_data_", format(Sys.Date(), "%Y%m%d"), ".csv")
+      "G1 - Project Delivery - DV.pdf"
     },
     content = function(file) {
-      write.csv(filtered_data(), file, row.names = FALSE)
-    }
+      file.copy("G1 - Project Delivery - DV.pdf", file)
+    },
+    contentType = "application/pdf"
   )
 
   observe({
