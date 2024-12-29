@@ -673,7 +673,7 @@ create_country_choropleth <- function(data) {
     rename(region = country)
   
   world <- map_data("world")
-  world <- left_join(world, country_data, by = "region", warn = FALSE)
+  world <- left_join(world, country_data, by = "region")
   
   ggplot(world, aes(x = long, y = lat, group = group, fill = suicide_rate)) +
     geom_polygon(color = "white", size = 0.1) +
